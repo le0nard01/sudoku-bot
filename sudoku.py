@@ -7,7 +7,7 @@
 
 import pygame as pg, threading as threading
 from copy import deepcopy
-from numpy import array,argwhere
+from numpy import array,delete, argwhere as where
 
 pg.init()
 screensize = 750,750
@@ -36,17 +36,17 @@ base_grid = [
     [0, 0, 0, 0, 0, 0, 0, 0, 3],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [1, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 1, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
 ]
 
-# 0 free | 1 wrong | 2 lock
+# 0 free | 1 ROW WRONG | 3 COL WRONG | 5 GROUP WRONG | 10 LOCKED
 rule_grid = [    
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 2],
+    [0, 0, 0, 0, 0, 0, 0, 0, 10],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -68,12 +68,14 @@ group_grid = [
     [6, 6, 6, 7, 7, 7, 8, 8, 8],
     [6, 6, 6, 7, 7, 7, 8, 8, 8],
 ]
-group_grid = array(group_grid)
 
+group_grid = array(group_grid)
 number_grid = deepcopy(base_grid)
+number_grid = array(number_grid)
 
 
 def put_number(row,col,number):
+    
     if number < 1 or number > 9:
         print("Invalid number.")
         return
@@ -82,67 +84,81 @@ def put_number(row,col,number):
         print(base_grid[row][col])
         print("This number cannot be changed.")
         return
+
     old_number = number_grid[row][col]
     number_grid[row][col] = number
-    checknumber(row,col,number,old_number)
+    
+    if number_grid[row][col] == old_number:
+        return
+    else:
+        checknumber(row,col,old_number,sub=False)
+    
 
-    #3n_text = font.render(str(number), True, pg.Color('Black'))
-    #screen.blit(n_text, pg.Vector2((col*80)+40, (row*80)+33))
+blacklist=[] # 0 free | 1 ROW WRONG | 3 COL WRONG | 5 GROUP WRONG | 10 LOCKED
+             #           [1,4,6,9]     [3,4,8,9]       [5,6,8,9]
+             
+def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
+    print("Checking: ",row,col)
+    samenumber = where(number_grid == number_grid[row][col])
 
-blacklist=[]
-def checknumber(row,col,number, old_number=0):  #All types of number-check
-    ver = 0
-    ver_grid = []
-    ver_grid.clear()
+    if len(samenumber) == 1 and rule_grid[row][col] == 0:
+        return
+
+    x = 0
+    y = []
+    for A,B in samenumber:
+        if A != row and B!=col or rule_grid[A][B] == 10:
+            y.append(x)
+        x +=1
+    samenumber = delete(samenumber,y,0)
+
+    rows_sn = samenumber[:, 0]
+    columns_sn = samenumber[:, 1]
+
+    if len(rows_sn) > 1 and rule_grid[row][col] not in [1,4,6,9]:
+        rule_grid[row][col] += 1
+    
+    elif len(rows_sn) == 1 and rule_grid[row][col] in [1,4,6,9]:
+        rule_grid[row][col] -= 1
+
+    if len(columns_sn) > 1 and rule_grid[row][col] not in [3,4,8,9]:
+        rule_grid[row][col] += 3
+
+    elif len(columns_sn) == 1 and rule_grid[row][col] in [3,4,8,9]:
+        rule_grid[row][col] -= 3
+
     blacklist.append([row,col])
+    
+    if rule_grid[row][col] != 0:
+        for A,B in samenumber:
+            if A == row and B == col:
+                pass
+            elif [A,B] not in blacklist:
+                checknumber(A,B,sub=True)
 
-    for i in range(0,9):    #Check e wrong numbers in rows and columns
+    if old_number != 0:
+        print("Test")
+        oldnumber_array = where(number_grid == old_number)
 
-        if number_grid[row][i] == number:
-            if i != col:
-                ver =  1
-            rule_grid[row][i] = 1
-            rule_grid[row][col] = 1
-            if [row,i] not in blacklist:
-                ver_grid.append([row,i])
+        y.clear()2 
+        x=0
+        for A,B in oldnumber_array:
+            if A != row and B!=col or rule_grid[A][B] == 10:
+                y.append(x)
+            x +=1
+        oldnumber_array = delete(oldnumber_array,y,0)
 
-        if number_grid[i][col] == number:
-            if i != row:
-                ver = 1
-            rule_grid[i][col] = 1
-            rule_grid[row][col] = 1
-            if [i,col] not in blacklist:
-                ver_grid.append([i,col])
-
-    group_array_index = argwhere(group_grid == group_grid[row][col])
-    group_array = []
-
-    for A,B in group_array_index:
-        if number_grid[A][B] == number and A != row and B != col:
-            group_array.append([A,B])
-            rule_grid[A][B] = 1
-            ver = 1
+        for A,B in oldnumber_array:
+            if A == row and B == col:
+                pass
+            elif [A,B] not in blacklist:
+                checknumber(A,B,sub=True)
+    
+        
             
 
-            
-    
 
-    if ver == 0:    #Re-check when a number is positioned correctly
-        if rule_grid[row][col] == 1:
-            for k in range(0,9):
-                if rule_grid[row][k] == 1 and number_grid[row][k] == old_number:
-                    ver_grid.append([row,k])
-                if rule_grid[k][col] == 1 and number_grid[k][col] == old_number:
-                    ver_grid.append([k,col])
-
-        rule_grid[row][col] = 0
-    
-    
-    for a,b in ver_grid:
-        print(a,b,number_grid[a][b])
-        checknumber(a,b,number_grid[a][b])
-    
-
+   
 def draw_background():
     screen.fill(pg.Color("White"))
     
@@ -174,9 +190,9 @@ def draw_base():
         while col <9:
             output = number_grid[row][col]
             
-            if (rule_grid[row][col] == 2):
+            if (rule_grid[row][col] == 10):
                 textcolor = pg.Color("Blue") 
-            elif (rule_grid[row][col] == 1):
+            elif (rule_grid[row][col] > 0 and rule_grid[row][col] < 10):
                 textcolor = pg.Color("Red")
             elif (rule_grid[row][col] == 0):
                 textcolor = pg.Color("Black")

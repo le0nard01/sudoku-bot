@@ -1,8 +1,7 @@
 # coding=utf-8
 
-# version 1.0.0
+# version 1.0.1
 # Sudoku generation and resolution by some methods
-# Does not work yet v2
 # 
 
 import pygame as pg, threading as threading
@@ -140,7 +139,7 @@ def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
         print("Test")
         oldnumber_array = where(number_grid == old_number)
 
-        y.clear()2 
+        y.clear()
         x=0
         for A,B in oldnumber_array:
             if A != row and B!=col or rule_grid[A][B] == 10:

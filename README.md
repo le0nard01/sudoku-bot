@@ -9,4 +9,4 @@ The project's focus has not yet been implemented.
 
 ### Demonstration:
 
-![alt text](https://raw.githubusercontent.com/le0nard01/sudoku-bot/main/sudoku.gif)
+![alt text](https://raw.githubusercontent.com/le0nard01/sudoku-bot/main/sudokugif.gif)

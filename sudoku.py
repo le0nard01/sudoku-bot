@@ -1,8 +1,7 @@
 # coding=utf-8
 
-# version 1.0.1
+# version 1.0.2
 # Sudoku generation and resolution by some methods
-# 
 
 import pygame as pg, threading as threading
 from copy import deepcopy
@@ -21,8 +20,6 @@ def cmd():
         for i in x:
             if int(i) < 1 or int(i) > 9:
                 print("Invalid number.")
-
-
 
         put_number(int(x[0])-1,int(x[1])-1,int(x[2]))
         blacklist.clear()
@@ -97,7 +94,6 @@ blacklist=[] # 0 free | 1 ROW WRONG | 3 COL WRONG | 5 GROUP WRONG | 10 LOCKED
              #           [1,4,6,9]     [3,4,8,9]       [5,6,8,9]
              
 def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
-    print("Checking: ",row,col)
     samenumber = where(number_grid == number_grid[row][col])
 
     if len(samenumber) == 1 and rule_grid[row][col] == 0:
@@ -112,7 +108,10 @@ def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
     samenumber = delete(samenumber,y,0)
 
     rows_sn = samenumber[:, 0]
+    rows_sn = delete(rows_sn,where(rows_sn != row))
+
     columns_sn = samenumber[:, 1]
+    columns_sn = delete(columns_sn, where(columns_sn != col))
 
     if len(rows_sn) > 1 and rule_grid[row][col] not in [1,4,6,9]:
         rule_grid[row][col] += 1
@@ -125,6 +124,16 @@ def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
 
     elif len(columns_sn) == 1 and rule_grid[row][col] in [3,4,8,9]:
         rule_grid[row][col] -= 3
+    
+    group = group_grid[row][col]
+    samegroup = where(group_grid == group)
+
+    for A,B in samegroup:
+        if number_grid[A][B] == number_grid[row][col] and A != row and B != col:
+            rule_grid[A][B] += 5 if rule_grid[A][B] not in [5,6,8,9] else 0
+            rule_grid[row][col] += 5 if rule_grid[row][col] not in [5,6,8,9] else 0
+
+
 
     blacklist.append([row,col])
     
@@ -136,7 +145,6 @@ def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
                 checknumber(A,B,sub=True)
 
     if old_number != 0:
-        print("Test")
         oldnumber_array = where(number_grid == old_number)
 
         y.clear()
@@ -147,17 +155,32 @@ def checknumber(row,col,old_number=0,sub=False):  #All types of number-check
             x +=1
         oldnumber_array = delete(oldnumber_array,y,0)
 
+        samegroup = where(group_grid == group_grid[row][col])
+        grouparray = {}
+
+        for A,B in samegroup:
+            if rule_grid[A][B] in [5,6,8,9]:
+                try:
+                    grouparray[int(number_grid[A][B])].append([A,B])
+                except:
+                    grouparray[int(number_grid[A][B])] = [[A,B]]
+
+        if len(grouparray) > 0:
+            for A in grouparray:
+                if len(grouparray[A]) > 1:
+                    pass
+                if len(grouparray[A]) == 1:
+                    rule_grid[grouparray[A][0][0]][grouparray[A][0][1]] -= 5
+
+            
+
         for A,B in oldnumber_array:
             if A == row and B == col:
                 pass
             elif [A,B] not in blacklist:
                 checknumber(A,B,sub=True)
-    
-        
-            
 
 
-   
 def draw_background():
     screen.fill(pg.Color("White"))
     
@@ -214,6 +237,7 @@ def game_loop():
     draw_background()
     draw_base()
     pg.display.flip()
+
 
 while 1:
     game_loop()
